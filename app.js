@@ -92,48 +92,39 @@ const loadingBar = document.getElementById('loading-bar');
         const cameraTarget = { x: -35.0, y: 0.0, z: 125.0 };
         camera.position.set(cameraOrigin.x, cameraOrigin.y, cameraOrigin.z);
 
-        const deferredTextureTasks = [];
-        let deferredStarted = false;
-        function startDeferredTextures() {
-            if (deferredStarted) return;
-            deferredStarted = true;
-            deferredTextureTasks.forEach(fn => fn());
+        let sceneFullyLoaded = false;
+        function completeSceneLoading() {
+            if (sceneFullyLoaded) return;
+            sceneFullyLoaded = true;
+            requestAnimationFrame(() => {
+                renderer.render(scene, camera);
+                requestAnimationFrame(() => {
+                    finishLoading();
+                });
+            });
         }
 
         const loadingManager = new THREE.LoadingManager();
         loadingManager.onProgress = function(url, itemsLoaded, itemsTotal) {
-            const pct = Math.min(99, Math.floor((itemsLoaded / itemsTotal) * 100));
+            const basePct = (window.location.protocol === 'file:') ? 50 : 0;
+            const spanPct = 99 - basePct;
+            const pct = Math.min(99, basePct + Math.floor((itemsLoaded / Math.max(1, itemsTotal)) * spanPct));
             updateProgress(pct);
         };
         loadingManager.onLoad = function() {
-            finishLoading();
-            setTimeout(startDeferredTextures, 80);
+            completeSceneLoading();
         };
         loadingManager.onError = function(url) {
             console.warn('Asset loading warning:', url);
-            startDeferredTextures();
         };
         const textureLoader = new THREE.TextureLoader(loadingManager);
-        const bgTextureLoader = new THREE.TextureLoader();
-        setTimeout(startDeferredTextures, 2500);
 
-        function loadSmartTexture(dataUri) {
-            const isCritical = !dataUri ||
-                dataUri.indexOf('data:') === 0 ||
-                dataUri.indexOf('panorama_background') !== -1 ||
-                dataUri.indexOf('clouds.') !== -1 ||
-                dataUri.indexOf('/building.') !== -1 ||
-                dataUri.indexOf('/tree.') !== -1 ||
-                dataUri.indexOf('tree_right') !== -1;
-            if (isCritical) {
-                return textureLoader.load(dataUri);
-            }
-            const tex = new THREE.Texture();
-            deferredTextureTasks.push(() => {
-                bgTextureLoader.load(dataUri, (loadedTex) => {
-                    tex.image = loadedTex.image;
-                    tex.needsUpdate = true;
-                });
+        function loadSmartTexture(dataUri, onReady) {
+            const tex = textureLoader.load(dataUri, (loadedTex) => {
+                if (typeof renderer.initTexture === 'function') {
+                    try { renderer.initTexture(loadedTex); } catch (e) {}
+                }
+                if (typeof onReady === 'function') onReady(loadedTex);
             });
             return tex;
         }
@@ -449,11 +440,16 @@ const loadingBar = document.getElementById('loading-bar');
             uniform vec2 uEdgeFeather;
             uniform vec4 uRipples[8]; // xy: UV坐标, z: 激发时间, w: 强度速度
             uniform float uTime;
+            uniform float uTexReady;
 
             varying vec2 vUv;
             varying float vDistance;
 
             void main() {
+                if (uTexReady < 0.5) {
+                    gl_FragColor = vec4(uBgColor, 1.0);
+                    return;
+                }
                 // 1. 水墨流体涟漪位移扩散 (基于二维毛细流体与波动衰减方程)
                 vec2 rippleOffset = vec2(0.0);
                 float totalWave = 0.0;
@@ -502,24 +498,29 @@ const loadingBar = document.getElementById('loading-bar');
         `;
 
         function createBackgroundMaterial(dataUri, options = {}) {
-            const texture = loadSmartTexture(dataUri);
+            const matUniforms = {
+                uMap: { value: null },
+                uBgColor: { value: paperColorVec3 },
+                uFarNear: { value: options.farNear || 140.0 },
+                uFarFar: { value: options.farFar || 380.0 },
+                uMaxFade: { value: options.maxFade !== undefined ? options.maxFade : 0.35 },
+                uEdgeFeather: { value: options.edgeFeather || new THREE.Vector2(0.001, 0.001) },
+                uRipples: { value: bgRippleArray },
+                uTime: { value: 0.0 },
+                uTexReady: { value: 0.0 }
+            };
+            const texture = loadSmartTexture(dataUri, () => {
+                matUniforms.uTexReady.value = 1.0;
+            });
             texture.generateMipmaps = true;
             texture.minFilter = THREE.LinearMipmapLinearFilter;
             texture.magFilter = THREE.LinearFilter;
+            matUniforms.uMap.value = texture;
 
             return new THREE.ShaderMaterial({
                 vertexShader: vertexShader,
                 fragmentShader: bgFragmentShader,
-                uniforms: {
-                    uMap: { value: texture },
-                    uBgColor: { value: paperColorVec3 },
-                    uFarNear: { value: options.farNear || 140.0 },
-                    uFarFar: { value: options.farFar || 380.0 },
-                    uMaxFade: { value: options.maxFade !== undefined ? options.maxFade : 0.35 },
-                    uEdgeFeather: { value: options.edgeFeather || new THREE.Vector2(0.001, 0.001) },
-                    uRipples: { value: bgRippleArray },
-                    uTime: { value: 0.0 }
-                },
+                uniforms: matUniforms,
                 transparent: false,
                 depthWrite: false,
                 depthTest: true
@@ -3884,12 +3885,12 @@ const loadingBar = document.getElementById('loading-bar');
         animate();
     } // end initApp
 
-    // 智能双模流式加载：网络环境下真实读取网络流进度；本地环境优雅平滑过渡
+    // 智能双模全量加载：等待全部 18 张场景贴图 100% 解码并上传至 GPU 后再撤除加载页（15 秒极端断网安全保底）
     if (typeof ELEMENT_ASSETS !== 'undefined') {
         initApp();
         setTimeout(() => {
             finishLoading();
-        }, 3500);
+        }, 15000);
     } else if (window.location.protocol !== 'file:' && window.fetch) {
         fetch('elements_data.js')
             .then(response => {
@@ -3910,14 +3911,16 @@ const loadingBar = document.getElementById('loading-bar');
                             script.onload = () => {
                                 URL.revokeObjectURL(scriptUrl);
                                 initApp();
-                                finishLoading();
+                                setTimeout(() => {
+                                    finishLoading();
+                                }, 15000);
                             };
                             document.head.appendChild(script);
                             return;
                         }
                         chunks.push(value);
                         loaded += value.length;
-                        const pct = Math.min(99, Math.floor((loaded / total) * 100));
+                        const pct = Math.min(45, Math.floor((loaded / total) * 45));
                         updateProgress(pct);
                         return pump();
                     });
@@ -3932,18 +3935,21 @@ const loadingBar = document.getElementById('loading-bar');
     }
 
     function loadScriptFallback() {
-        let p = 15;
+        let p = 10;
         const timer = setInterval(() => {
-            p += (95 - p) * 0.12;
+            p += (50 - p) * 0.15;
             updateProgress(Math.floor(p));
-        }, 120);
+        }, 100);
 
         const script = document.createElement('script');
         script.src = (window.location.protocol === 'file:') ? 'elements_data_local.js' : 'elements_data.js';
         script.onload = () => {
             clearInterval(timer);
+            updateProgress(50);
             initApp();
-            finishLoading();
+            setTimeout(() => {
+                finishLoading();
+            }, 15000);
         };
         script.onerror = () => {
             clearInterval(timer);
