@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>3D 纵深长卷 · 三晋天工</title>
+  <style>
+    /* 宣纸古风瞬时底色与极速研墨加载层，0毫秒呈现，彻底杜绝白屏 */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #f2ebd9 !important;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    :root {
+      --seal-bg: url("assets_elements/hongyin.webp");
+    }
+    #loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #f2ebd9;
+      z-index: 999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 1;
+      transition: opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+      pointer-events: auto;
+    }
+    #loading-overlay.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .loading-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 30px;
+    }
+    .loading-seal {
+      width: 32px;
+      height: 38px;
+      background-image: var(--seal-bg);
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      filter: drop-shadow(0 2px 4px rgba(178, 45, 38, 0.35));
+      margin-bottom: 16px;
+      animation: loading-seal-breathe 2.4s ease-in-out infinite;
+    }
+    @keyframes loading-seal-breathe {
+      0%, 100% { transform: scale(1); opacity: 0.92; }
+      50% { transform: scale(1.06); opacity: 1; }
+    }
+    .loading-title {
+      font-family: "STXingkai", "Xingkai SC", "华文行楷", "行楷", serif;
+      font-size: 22px;
+      color: #26201b;
+      letter-spacing: 0.16em;
+      margin-bottom: 8px;
+    }
+    .loading-sub {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+      color: #5a4d41;
+      letter-spacing: 0.12em;
+      margin-bottom: 24px;
+    }
+    .loading-bar-wrap {
+      width: 200px;
+      height: 2px;
+      background: rgba(38, 32, 27, 0.12);
+      border-radius: 1px;
+      overflow: hidden;
+      position: relative;
+    }
+    .loading-bar-inner {
+      width: 0%;
+      height: 100%;
+      background: #b22d26;
+      box-shadow: 0 0 6px rgba(178, 45, 38, 0.5);
+      transition: width 0.2s ease-out;
+    }
+    .loading-status {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-size: 11px;
+      color: #7a6e63;
+      letter-spacing: 0.10em;
+      margin-top: 10px;
+    }
+
+    /* ==========================================================================
+       「三晋天工 · 探索导览」现代简明风格样式（全卷完整版 · 电脑端 & 移动端竖屏旋转 100% 适配）
+       ========================================================================== */
+
+    /* 1. 首屏开篇背景介绍弹窗（严格点击「开始探索」按钮才进入，纯 vh 响应式适配电脑与手机） */
+    #curatorial-intro-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 95;
+      background: rgba(28, 23, 19, 0.44);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 1;
+      pointer-events: auto;
+      transition: opacity 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0.5s;
+    }
+    html.mobile-portrait-rotated #curatorial-intro-overlay {
+      width: var(--m-width, 177.78vh) !important;
+      height: var(--m-height, 100vh) !important;
+    }
+    #curatorial-intro-overlay.is-dismissed {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none !important;
+    }
+    .ci-paper-card {
+      width: 64vh;
+      max-width: 90vw;
+      background: #fbf6ec;
+      border: 1px solid rgba(43, 35, 29, 0.28);
+      box-shadow: 0 2.2vh 6.5vh rgba(20, 16, 12, 0.25), inset 0 0 0 0.45vh #fbf6ec, inset 0 0 0 0.55vh rgba(43, 35, 29, 0.12);
+      border-radius: 0.45vh;
+      padding: 3.0vh 3.6vh 2.6vh;
+      color: #26201b;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    html.mobile-portrait-rotated .ci-paper-card {
+      max-width: calc(var(--m-width, 177.78vh) * 0.88) !important;
+    }
+    #curatorial-intro-overlay.is-dismissed .ci-paper-card {
+      transform: translate(-38vh, 26vh) scale(0.25);
+    }
+    .ci-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75vh;
+      font-size: 1.38vh;
+      letter-spacing: 0.08em;
+      color: #b22d26;
+      font-weight: 600;
+      margin-bottom: 0.9vh;
+    }
+    .ci-eyebrow::before {
+      content: "";
+      display: inline-block;
+      width: 0.65vh;
+      height: 0.65vh;
+      background: #b22d26;
+      transform: rotate(45deg);
+    }
+    .ci-title {
+      font-size: 2.25vh;
+      font-weight: 700;
+      color: #26201b;
+      margin: 0 0 1.35vh 0;
+      line-height: 1.35;
+      white-space: nowrap;
+    }
+    .ci-lead {
+      font-size: 1.54vh;
+      line-height: 1.72;
+      color: #4a3f35;
+      margin: 0 0 1.3vh 0;
+    }
+    .ci-lead:last-of-type {
+      margin-bottom: 2.4vh;
+    }
+    .ci-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 1.5vh;
+      border-top: 1px solid rgba(43, 35, 29, 0.12);
+    }
+    .ci-footer-note {
+      font-size: 1.36vh;
+      color: #7a6e63;
+      white-space: nowrap;
+    }
+    .ci-start-btn {
+      padding: 0.9vh 2.6vh;
+      font-size: 1.54vh;
+      font-weight: 600;
+      color: #fbf6ec;
+      background: #b22d26;
+      border: 1px solid #96221c;
+      border-radius: 0.45vh;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s ease, transform 0.15s ease;
+      font-family: inherit;
+    }
+    .ci-start-btn:hover {
+      background: #8f211b;
+      transform: translateY(-1px);
+    }
+
+    /* 2. 左下角常驻「探索提示」卡片与圆钮（纯 vh 单位，兼容电脑与手机旋转横屏） */
+    #inquiry-bookmark {
+      position: fixed;
+      left: 3.6vh;
+      bottom: 8.2vh;
+      z-index: 80;
+      display: flex;
+      align-items: flex-end;
+      gap: 1.0vh;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      pointer-events: none;
+      transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    #inquiry-bookmark.is-hidden-by-modal {
+      opacity: 0;
+      pointer-events: none !important;
+      transform: translateY(1.2vh);
+    }
+    /* 左侧进度圆钮（点击可收起/展开卡片） */
+    .ib-seal-btn {
+      position: relative;
+      z-index: 2;
+      pointer-events: auto;
+      width: 4.8vh;
+      height: 4.8vh;
+      border-radius: 50%;
+      background: #26201b;
+      border: max(1.2px, 0.16vh) solid rgba(251, 246, 236, 0.85);
+      box-shadow: 0 0.45vh 1.5vh rgba(24, 20, 17, 0.28);
+      color: #fbf6ec;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      padding: 0;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.25s ease, box-shadow 0.25s ease;
+    }
+    .ib-seal-btn:hover {
+      transform: scale(1.08);
+      background: #b22d26;
+    }
+    /* 卡片被吸入圆钮瞬间：圆钮回弹放大 + 朱砂墨韵光晕脉冲 */
+    @keyframes ibSealAbsorbPulse {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 0.45vh 1.5vh rgba(24, 20, 17, 0.28), 0 0 0 0 rgba(178, 45, 38, 0.72);
+      }
+      38% {
+        transform: scale(1.24);
+        background: #b22d26;
+        box-shadow: 0 0.65vh 2.4vh rgba(178, 45, 38, 0.48), 0 0 0 1.2vh rgba(178, 45, 38, 0.18);
+      }
+      72% {
+        transform: scale(0.94);
+        box-shadow: 0 0.45vh 1.5vh rgba(24, 20, 17, 0.28), 0 0 0 1.8vh rgba(178, 45, 38, 0);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0.45vh 1.5vh rgba(24, 20, 17, 0.28), 0 0 0 0 rgba(178, 45, 38, 0);
+      }
+    }
+    .ib-seal-btn.is-absorbing {
+      animation: ibSealAbsorbPulse 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    .ib-seal-char {
+      font-size: 1.18vh;
+      font-weight: 600;
+      line-height: 1.1;
+    }
+    .ib-seal-prog {
+      font-size: 1.06vh;
+      opacity: 0.9;
+      margin-top: 0.1vh;
+      font-weight: 700;
+    }
+
+    /* 右侧探索提示卡片：以左侧圆钮中心（-2.9vh, calc(100% - 2.4vh)）为吸入/吐出锚点 */
+    .ib-card {
+      position: relative;
+      z-index: 1;
+      pointer-events: auto;
+      width: 41vh;
+      background: rgba(251, 246, 236, 0.95);
+      border: 1px solid rgba(43, 35, 29, 0.22);
+      border-left: 0.38vh solid #b22d26;
+      box-shadow: 0 0.85vh 2.8vh rgba(38, 32, 27, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+      border-radius: 0.45vh;
+      padding: 1.25vh 1.55vh;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transform-origin: -2.9vh calc(100% - 2.4vh);
+      transform: translate3d(0, 0, 0) scale(1);
+      opacity: 1;
+      filter: blur(0px);
+      transition:
+        transform 0.52s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.38s ease-out,
+        filter 0.42s ease-out,
+        border-radius 0.52s ease;
+      will-change: transform, opacity, filter;
+    }
+    #inquiry-bookmark.is-Verify-solved .ib-card {
+      border-left-color: #2e6b4e;
+    }
+    /* 被吸入收起状态：向圆钮中心水滴状聚拢缩小 + 水墨模糊吸入 */
+    #inquiry-bookmark.is-collapsed .ib-card {
+      pointer-events: none;
+      opacity: 0;
+      transform: translate3d(-1.2vh, 0.4vh, 0) scale3d(0.04, 0.08, 1) skewX(-8deg);
+      filter: blur(5px);
+      border-radius: 3.0vh;
+      transition:
+        transform 0.65s cubic-bezier(0.55, 0.06, 0.68, 0.19),
+        opacity 0.55s cubic-bezier(0.4, 0, 0.85, 0.6) 0.08s,
+        filter 0.55s ease-in,
+        border-radius 0.55s ease-in;
+    }
+    .ib-header {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0.85vh;
+      padding-bottom: 0.65vh;
+      margin-bottom: 0.65vh;
+      border-bottom: 1px solid rgba(43, 35, 29, 0.11);
+      white-space: nowrap;
+    }
+    .ib-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.85vh;
+      white-space: nowrap;
+    }
+    .ib-status-tag {
+      font-size: 1.14vh;
+      font-weight: 600;
+      padding: 0.18vh 0.65vh;
+      border-radius: 0.32vh;
+      color: #fbf6ec;
+      background: #b22d26;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .ib-status-tag.is-solved {
+      background: #2e6b4e;
+    }
+    .ib-status-tag.is-guide {
+      background: #5a4d41;
+    }
+    .ib-chapter-label {
+      font-size: 1.26vh;
+      font-weight: 600;
+      color: #5a4d41;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .ib-question-body {
+      font-size: 1.38vh;
+      font-weight: 600;
+      color: #26201b;
+      line-height: 1.48;
+      margin-bottom: 0.55vh;
+    }
+    .ib-action-hint {
+      font-size: 1.22vh;
+      color: #7a3b2e;
+      line-height: 1.4;
+    }
+    #inquiry-bookmark.is-Verify-solved .ib-action-hint {
+      color: #2e6b4e;
+    }
+
+  </style>
+  <link rel="stylesheet" href="styles.css">
+  <script src="elements_data.js" defer></script>
+  <script src="three.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <!-- 宣纸古风首屏加载页 (0.05 秒瞬时显现，消除白屏等待焦虑) -->
+  <div id="loading-overlay">
+  <div class="loading-box">
+  <div class="loading-seal"></div>
+  <div class="loading-title">三晋天工 · 长卷铺展中</div>
+  <div class="loading-sub">三晋古建营造之妙 · 正在研墨入画</div>
+  <div class="loading-bar-wrap">
+  <div class="loading-bar-inner" id="loading-bar"></div>
+  </div>
+  <div class="loading-status" id="loading-status">已研墨 0%</div>
+  </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- 1. 开篇背景介绍弹窗（严格点击「开始探索」按钮才进入画卷） -->
+  <!-- ============================================================== -->
+  <div id="curatorial-intro-overlay" role="dialog" aria-label="长卷背景介绍">
+    <div class="ci-paper-card">
+      <div class="ci-eyebrow">三晋天工 · 互动长卷导览</div>
+      <h2 class="ci-title">走进山西三大古建，探索背后的建造秘密</h2>
+      <p class="ci-lead">
+        山西保存着中国最珍贵的早期木结构古建筑。在这幅立体长卷中，你将由近及远，依次走近三座极具代表性的古建奇迹——<strong>介休祆神楼、浑源悬空寺、芮城永乐宫</strong>。
+      </p>
+      <p class="ci-lead">
+        游览过程中，屏幕左下角的<strong>「探索提示」</strong>会在每一站为你提出一个建筑悬念，点击画面中的建筑细节即可揭晓答案。
+      </p>
+      <div class="ci-footer">
+        <span class="ci-footer-note">随时可通过向下滚动鼠标滚轮（或滑动屏幕）推进画面</span>
+        <button type="button" class="ci-start-btn" id="ciStartBtn">开始探索</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- 2. 左下角常驻「探索提示」卡片 -->
+  <!-- ============================================================== -->
+  <div id="inquiry-bookmark" role="region" aria-label="探索提示">
+    <button type="button" class="ib-seal-btn" id="ibSealToggleBtn" title="点击展开或收起探索提示">
+      <span class="ib-seal-char">探索</span>
+      <span class="ib-seal-prog" id="ibSealProg">0/3</span>
+    </button>
+    <div class="ib-card" id="ibCard">
+      <div class="ib-header">
+        <div class="ib-title-group">
+          <span class="ib-status-tag is-guide" id="ibStatusTag">操作指引</span>
+          <span class="ib-chapter-label" id="ibChapterLabel">序卷 · 初庭</span>
+        </div>
+      </div>
+      <div class="ib-question-body" id="ibQuestionBody">
+        出发前，点击左侧的【大松树】可以快速了解这三座古建筑的概况。
+      </div>
+      <div class="ib-action-hint" id="ibActionHint">
+        <span>向下滚动鼠标滚轮，前往第一站</span>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="webgl-canvas"></canvas>
+  <canvas id="ink-canvas"></canvas>
+  <div id="ink-cursor">
+  <svg id="brush-svg" width="16" height="42" viewBox="0 0 16 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 竹笔杆 (直筒细管，双勾墨线，内填熟纸淡褐肌理) -->
+  <rect x="5.5" y="14" width="3.2" height="27" rx="0.6" fill="#ded5c6" stroke="#322a22" stroke-width="0.6"/>
+  <!-- 笔节墨线 -->
+  <line x1="5.5" y1="23" x2="8.7" y2="23" stroke="#322a22" stroke-width="0.5"/>
+  <line x1="5.5" y1="32" x2="8.7" y2="32" stroke="#322a22" stroke-width="0.5"/>
+  <!-- 黑牛角/素木笔斗 (上窄下收束，庄重典雅) -->
+  <path d="M4.5 9 L9.5 9 L8.7 14 L5.3 14 Z" fill="#2a231d" stroke="#1c1713" stroke-width="0.6"/>
+  <!-- 兼毫笔锋 (深黑焦墨兼毫，尖锐如锥) -->
+  <path d="M4.5 9 C 4.5 5, 5.8 2, 7 0.8 C 8.2 2, 9.5 5, 9.5 9 Z" fill="#181411" stroke="#181411" stroke-width="0.5"/>
+  <!-- 笔尖微润毫丝高光 -->
+  <line x1="7" y1="0.8" x2="7" y2="5" stroke="#fff" stroke-width="0.4" opacity="0.4"/>
+  <!-- 笔尖朱红极细印点（确保点击定位极高精确度） -->
+  <circle cx="7" cy="0.8" r="0.7" fill="#b33928"/>
+  </svg>
+  </div>
+  <!-- 观景位 0：古风竖排题跋 (从左往右阅读顺序：主标在左 -> 分割线 -> 诗文上联+提示 -> 诗文下联) -->
+  <div id="inscription-stop0">
+  <!-- 第 1 列 (最左)：主卷题签 + 序卷正下方传统朱砂印 -->
+  <div class="insc-col insc-title-col">三晋天工·序卷<span class="insc-seal"></span></div>
+  <!-- 中间独立分割竖线 (下沉 1 单位，较文字探出) -->
+  <div class="insc-divider-line"></div>
+  <!-- 第 2 列 (中)：工笔诗文上联 + 滚动深入与右侧滚轮图标动画 -->
+  <div class="insc-col insc-poem-col">重檐叠翠隐松风<span class="insc-hint"><span class="insc-hint-words">滚动深入<span class="scroll-wheel-anim" aria-hidden="true"><svg viewBox="0 0 22 29" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="1.5" width="16" height="26" rx="8" fill="rgba(251, 246, 236, 0.42)" stroke="#2b231d" stroke-width="1.6"/><line x1="11" y1="6.5" x2="11" y2="17.5" stroke="rgba(43, 35, 29, 0.25)" stroke-width="1.2" stroke-linecap="round"/><circle class="wheel-bead" cx="11" cy="8" r="2.3" fill="#b22d26"/></svg></span></span><span class="hint-arrow">▾</span></span></div>
+  <!-- 第 3 列 (最右)：工笔诗文下联 -->
+  <div class="insc-col insc-poem-col">一进初庭入画中</div>
+  </div>
+  <!-- ============================================================== -->
+  <!-- 观景位 0：开篇「三晋天工 · 三大古建总览」居中三联乌丝栏画卷 (点击首屏左侧苍松唤起) -->
+  <!-- ============================================================== -->
+  <div id="overview-stop0">
+  <div class="overview-backdrop" id="overviewStop0Backdrop"></div>
+  <div class="overview-panel" id="overviewStop0Panel">
+  <button class="overview-close-btn" id="closeOverviewStop0Btn" title="收起总览">✕</button>
+  <!-- 顶部通栏总叙眉头 -->
+  <div class="overview-header">
+  <div class="overview-header-left">
+  <span class="overview-seal-badge">三晋天工</span>
+  <div class="overview-title-group">
+  <h2>表里山河 · 三晋三筑营造总览</h2>
+  <p>跨越北魏、元、明千载岁月 · 纵览晋中市井神楼、晋北绝壁奇构与晋南道教祖庭</p>
+  </div>
+  </div>
+  </div>
+  <!-- 三联并列建筑总览甲板 -->
+  <div class="overview-cards-grid">
+  <!-- 建筑一：卷一 · 介休祆神楼 -->
+  <div class="overview-bldg-card">
+  <div class="ov-card-top">
+  <span class="ov-vol-tag">卷一 · 首章</span>
+  <span class="ov-era-tag">晋中 · 明代正德</span>
+  </div>
+  <div class="ov-card-art">
+  <img id="ovImg1" src="building_cutout.webp" loading="lazy" alt="介休祆神楼国画立面">
+  </div>
+  <div class="ov-card-title-block">
+  <h3 class="ov-bldg-name"><ruby>介<rt>jiè</rt></ruby><ruby>休<rt>xiū</rt></ruby><ruby>祆<rt>xiān</rt></ruby><ruby>神<rt>shén</rt></ruby><ruby>楼<rt>lóu</rt></ruby></h3>
+  <span class="ov-bldg-sub">三彩琉璃神兽与十字歇山孤例</span>
+  </div>
+  <p class="ov-card-desc">我国现存唯一明代<strong>顺城街过街戏台与重檐十字歇山顶</strong>相交的楼阁孤例。底层跨街贯通市井，檐下施精雕<strong>莲花托角斗栱</strong>；屋脊满饰晋中<strong>明代三彩琉璃脊兽</strong>，见证丝路遗风与本土神道木构的共融。</p>
+  <div class="ov-card-metrics">
+  <div class="ov-metric-item">
+  <span class="ov-m-val">十字歇山</span>
+  <span class="ov-m-lbl">明代楼阁孤例</span>
+  </div>
+  <div class="ov-metric-item">
+  <span class="ov-m-val">5 大脊兽</span>
+  <span class="ov-m-lbl">明代三彩琉璃</span>
+  </div>
+  <div class="ov-metric-item">
+  <span class="ov-m-val">过街戏台</span>
+  <span class="ov-m-lbl">三层悬挑斗栱</span>
+  </div>
+  </div>
+  <div class="ov-card-seq-tag">
+  <span class="ov-seq-hint">过街神楼 · 歇山琉璃</span>
+  </div>
+  </div>
+  <!-- 建筑二：卷二 · 浑源悬空寺 -->
+  <div class="overview-bldg-card">
+  <div class="ov-card-top">
+  <span class="ov-vol-tag">卷二 · 中章</span>
+  <span class="ov-era-tag">晋北 · 北魏太和</span>
+  </div>
+  <div class="ov-card-art">
+  <img id="ovImg2" src="2建筑.webp" loading="lazy" alt="浑源悬空寺国画立面">
+  </div>
+  <div class="ov-card-title-block">
+  <h3 class="ov-bldg-name"><ruby>浑<rt>hún</rt></ruby><ruby>源<rt>yuán</rt></ruby><ruby>悬<rt>xuán</rt></ruby><ruby>空<rt>kōng</rt></ruby><ruby>寺<rt>sì</rt></ruby></h3>
+  <span class="ov-bldg-sub">万仞绝壁飞梁与悬空奇险力学</span>
+  </div>
+  <p class="ov-card-desc">始建于北魏太和十五年（491年），嵌于恒山金龙峡百丈内凹绝壁。古匠凿石深孔，插入桐油浸泡的<strong>“铁镦半插飞梁”</strong>挑起整座殿阁，下设<strong>“似立非立”虚悬立木</strong>分荷抗震，创下<strong>儒释道三教同殿</strong>的凌空奇迹。</p>
+  <div class="ov-card-metrics">
+  <div class="ov-metric-item">
+  <span class="ov-m-val">491 年</span>
+  <span class="ov-m-lbl">北魏太和始建</span>
+  </div>
+  <div class="ov-metric-item">
+  <span class="ov-m-val">2-3 米</span>
+  <span class="ov-m-lbl">飞梁深嵌崖石</span>
+  </div>
+  <div class="ov-metric-item">
+  <span class="ov-m-val">三教同殿</span>
+  <span class="ov-m-lbl">悬梁立木互补</span>
+  </div>
+  </div>
+  <div class="ov-card-seq-tag">
+  <span class="ov-seq-hint">万仞飞梁 · 虚悬奇构</span>
+  </div>
+  </div>
+  <!-- 建筑三：卷三 · 芮城永乐宫 -->
+  <div class="overview-bldg-card">
+  <div class="ov-card-top">
+  <span class="ov-vol-tag">卷三 · 终章</span>
+  <span class="ov-era-tag">晋南 · 元代至元</span>
+  </div>
+  <div class="ov-card-art">
+  <img id="ovImg3" src="3建筑.webp" loading="lazy" alt="芮城永乐宫国画立面">
+  </div>
+  <div class="ov-card-title-block">
+  <h3 class="ov-bldg-name"><ruby>芮<rt>ruì</rt></ruby><ruby>城<rt>chéng</rt></ruby><ruby>永<rt>yǒng</rt></ruby><ruby>乐<rt>lè</rt></ruby><ruby>宫<rt>gōng</rt></ruby></h3>
+  <span class="ov-bldg-sub">三门峡整宫迁建与朝元图重彩</span>
+  </div>
+  <p class="ov-card-desc">元代道教全真派祖庭巨制。三清殿采用<strong>“减柱造”与七铺作斗拱</strong>营造十五米无遮挡通阔殿心；四壁满绘逾四百平米<strong>天然矿物重彩《朝元图》</strong>；1959年因水库兴建，历时十年完成<strong>二十公里原构整体搬迁</strong>。</p>
+  <div class="ov-card-metrics">
+  <div class="ov-metric-item">
+  <span class="ov-m-val">700 余年</span>
+  <span class="ov-m-lbl">矿物重彩壁画</span>
+  </div>
+  <div class="ov-metric-item">
+  <span class="ov-m-val">减柱造</span>
+  <span class="ov-m-lbl">殿心零遮视野</span>
+  </div>
+  <div class="ov-metric-item">
+  <span class="ov-m-val">20 公里</span>
+  <span class="ov-m-lbl">整宫落架迁建</span>
+  </div>
+  </div>
+  <div class="ov-card-seq-tag">
+  <span class="ov-seq-hint">减柱大殿 · 矿物重彩</span>
+  </div>
+  </div>
+  </div>
+  <!-- 底部通栏滚轮游历操作认知强化栏 -->
+  <div class="overview-scroll-guide" id="overviewScrollGuideBar" title="向下拨动鼠标滚轮即可开启长卷漫游">
+  <span class="ov-scroll-wheel-icon" aria-hidden="true">
+  <svg viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="2.5" y="1.5" width="19" height="28" rx="9.5" stroke="#2b231d" stroke-width="2.1"/>
+  <line x1="12" y1="6.5" x2="12" y2="14.5" stroke="#2b231d" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+  <circle class="wheel-bead" cx="12" cy="8.5" r="2.5" fill="#b22d26"/>
+  <path d="M8.5 32.5L12 35.5L15.5 32.5" stroke="#b22d26" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  </span>
+  <span class="ov-scroll-guide-text">向下拨动<strong>鼠标滚轮</strong> · 顺山水长卷由浅入深依序游历三晋三筑</span>
+  <span class="ov-scroll-guide-sub">（当前页面直接下滚滚轮即可收起总览并步入卷一）</span>
+  </div>
+  </div>
+  </div>
+  <!-- 观景位 1/2/3：左上角三大古建篇章主标 (竖线 + 拼音注音卷名 + 朱印 + 题旨) -->
+  <div id="chapter-badge">
+  <div class="badge-line"></div>
+  <div class="badge-text-group">
+  <div class="badge-title-box">
+  <span class="badge-title" id="badge-title">卷一 · <ruby>介<rt>jiè</rt></ruby><ruby>休<rt>xiū</rt></ruby><ruby>祆<rt>xiān</rt></ruby><ruby>神<rt>shén</rt></ruby><ruby>楼<rt>lóu</rt></ruby></span>
+  <span class="badge-seal"></span>
+  </div>
+  <div class="badge-sub" id="badge-sub">三彩神兽与异域木构</div>
+  <div class="badge-hint" id="badge-hint">点击节点看详情</div>
+  </div>
+  </div>
+  <!-- 观景位 2：浑源悬空前瞻 · 3D 经折装风琴折页 (方案 B：高耸立式案头折装·横排古籍留白) -->
+  <div id="narrative-stop2">
+  <!-- 沉浸水墨暗度背景 (展开时激活，点击可收起) -->
+  <div class="fold-backdrop" id="fold2Backdrop"></div>
+  <!-- 3D 经折装挂载母节点 (封皮在最右侧，内页向左层级嵌套翻折) -->
+  <div class="fold-book-anchor" id="bookRoot2" title="点击展开/收起经折装">
+  <!-- 封皮 (最右侧母级，未展开时唯一可见层，右边缘装订) -->
+  <div class="fold-panel-unit page-cover-unit" id="panelCover">
+  <!-- 正面 -->
+  <div class="panel-face-front">
+  <img class="panel-mountain-watermark" loading="lazy" src="assets_ui/s2_wm_cover.webp" alt="白描山峦水印·第4折">
+  <div class="inner-frame">
+  <div class="cover-content">
+  <div class="cover-header">
+  <span class="cover-tag">营造秘录</span>
+  <span class="cover-stamp">北魏太和</span>
+  </div>
+  <div class="cover-mid">
+  <h2 class="cover-title">绝壁营建秘史</h2>
+  <span class="cover-sub">浑源悬空寺经折考</span>
+  <p class="cover-quote">北魏太和十五年（491年），古代哲匠悬于金龙峡百丈绝壁，依崖开凿石孔，半插横梁构筑殿宇。整座建筑悬于崖壁中段，上依危岩、下临深谷，创下中国古建史上的悬空奇迹。</p>
+  </div>
+  <button class="cover-btn cover-btn-expand" id="coverExpandBtn">
+  <span class="cover-btn-label"><span class="cover-btn-arrow">◂</span>点击展卷</span>
+  </button>
+  <button class="cover-btn cover-btn-close" id="coverCloseBtn">
+  <span class="cover-btn-label">收起经折<span class="cover-btn-arrow">▸</span></span>
+  </button>
+  </div>
+  </div>
+  </div>
+  <!-- 纯白熟宣背面 -->
+  <div class="panel-face-back"></div>
+  <!-- 级联嵌套：第 3 折 (其三 · 悬柱，向左翻折) -->
+  <div class="fold-panel-unit" id="panel3" style="right: 100%;">
+  <div class="panel-face-front">
+  <img class="panel-mountain-watermark" loading="lazy" src="assets_ui/s2_wm_panel3.webp" alt="白描山峦水印·第3折">
+  <div class="inner-frame">
+  <div class="panel-inner-box">
+  <div class="panel-num-row">
+  <span class="panel-num">其三 · 悬柱</span>
+  <span class="panel-badge">巧借山势 · 似立非立</span>
+  </div>
+  <div class="panel-mid">
+  <h2 class="panel-title">巧借立木 · 虚实分荷</h2>
+  <p class="panel-desc">崖下立柱实非主力承重结构，柱头与楼阁梁架间留有微小暗隙，平时多处于轻荷甚至虚悬状态。唯有殿阁重载或遇地震晃动时，立木才受压承重，与悬挑横梁虚实互补以化解外力。</p>
+  </div>
+  <div class="panel-stat-box">
+  <span class="stat-label">工程力学</span>
+  <span class="stat-val">悬梁为主 · 立木为虚</span>
+  </div>
+  </div>
+  </div>
+  </div>
+  <div class="panel-face-back"></div>
+  <!-- 级联嵌套：第 2 折 (其二 · 飞梁，向左翻折) -->
+  <div class="fold-panel-unit" id="panel2" style="right: 100%;">
+  <div class="panel-face-front">
+  <img class="panel-mountain-watermark" loading="lazy" src="assets_ui/s2_wm_panel2.webp" alt="白描山峦水印·第2折">
+  <div class="inner-frame">
+  <div class="panel-inner-box">
+  <div class="panel-num-row">
+  <span class="panel-num">其二 · 飞梁</span>
+  <span class="panel-badge">半插横梁 · 桐油浸百年</span>
+  </div>
+  <div class="panel-mid">
+  <h2 class="panel-title">铁镦飞梁 · 榫卯暗楔</h2>
+  <p class="panel-desc">承托整座楼阁的核心，在于深入崖壁内部的‘铁镦飞梁’。工匠在岩石中凿出深孔，插入经桐油浸泡防腐的木梁，并在孔洞尽头打入木楔——上方荷载越重，孔内木楔咬合越紧，牢牢挑起几十吨重的殿阁。</p>
+  </div>
+  <div class="panel-stat-box">
+  <span class="stat-label">飞梁埋深</span>
+  <span class="stat-val">深约 2-3 米</span>
+  </div>
+  </div>
+  </div>
+  </div>
+  <div class="panel-face-back"></div>
+  <!-- 级联嵌套：第 1 折 (其一 · 选址，最左端，向左翻折) -->
+  <div class="fold-panel-unit" id="panel1" style="right: 100%;">
+  <div class="panel-face-front">
+  <img class="panel-mountain-watermark" loading="lazy" src="assets_ui/s2_wm_panel1.webp" alt="白描山峦水印·第1折">
+  <div class="inner-frame">
+  <div class="panel-inner-box">
+  <div class="panel-num-row">
+  <span class="panel-num">其一 · 选址</span>
+  <span class="panel-badge">岩檐天伞 · 绝暴雨风蚀</span>
+  </div>
+  <div class="panel-mid">
+  <h2 class="panel-title">天险选址 · 崖隙避劫</h2>
+  <p class="panel-desc">建筑选址于峡谷绝壁天然内凹处。上方凸出的天然崖石有效阻隔了崖顶落石与暴雨山洪；谷深壁立，终年日照不足两时辰，免受烈日与狂风侵蚀，木构得以历千五百年不糟朽。</p>
+  </div>
+  <div class="panel-stat-box">
+  <span class="stat-label">日照时长</span>
+  <span class="stat-val">≈ 2 小时/日</span>
+  </div>
+  </div>
+  </div>
+  </div>
+  <div class="panel-face-back"></div>
+  </div> <!-- end panel1 -->
+  </div> <!-- end panel2 -->
+  </div> <!-- end panel3 -->
+  </div> <!-- end panelCover -->
+  </div>
+  </div>
+  <!-- ============================================================== -->
+  <!-- 观景位 4：永乐仙境前瞻 · 3 折横向伸缩手风琴交互面板 (整体大搬迁 / 矿物色谱 / 减柱造力学) -->
+  <!-- ============================================================== -->
+  <div id="narrative-stop4">
+  <!-- 25% 水墨烟云微遮罩 (压暗三维背景，突出折页文字与微观图解) -->
+  <div class="scene4-backdrop" id="scene4Backdrop"></div>
+  <div class="glass-panel" id="mainGlassPanel">
+  <button class="panel-close-btn" id="closeStop4Btn" title="收起卡片">✕</button>
+  <!-- 面板头部 -->
+  <div class="panel-header">
+  <div class="title-group">
+  <h2>永乐大殿 · 营造前瞻考据</h2>
+  <p>三清道境 · 整体大搬迁 / 天然矿物色 / 减柱造力学</p>
+  </div>
+  </div>
+  <!-- 初始收起卡片态下的点击激活气泡提示 -->
+  <div class="card-prompt-hint">
+  <span>点击展开营造考据</span>
+  <span>▸</span>
+  </div>
+  <!-- 3 折横向手风琴伸缩甲板 -->
+  <div class="accordion-deck" id="accordionDeck">
+  <!-- 折页 1：整体大搬迁 (点开后默认激活) -->
+  <div class="card-fold active" data-fold="1">
+  <div class="collapsed-strip">
+  <span class="strip-cat-tag">原构</span>
+  <span class="strip-main-title">水库迁移</span>
+  <span class="strip-axis-line"></span>
+  <div class="strip-icon">迁</div>
+  </div>
+  <!-- 收拢态工笔白描微显：宋代江河层浪与古刹殿脊 -->
+  <div class="peek-artwork peek-artwork-1">
+  <img src="assets_ui/s4_peek_1.webp" alt="前瞻背景线稿·西峰">
+  </div>
+  <div class="expanded-content">
+  <div class="detail-meta">
+  <div class="meta-top-block">
+  <span class="meta-tag">工程奇迹 · 原样大搬迁</span>
+  <h3>整体大搬迁</h3>
+  <div class="meta-question">为什么这处七百年前的古建筑，<br>能够免遭黄河蓄水淹没？</div>
+  <p class="meta-desc">1959年因<strong>三门峡水利枢纽</strong>兴建，永乐宫原址面临被黄河水彻底淹没的危机。文物工程团队历时近十年，采用高难度的<strong>无损分块揭取</strong>与<strong>榫卯落架工艺</strong>，将四百多平方米元代壁画按画面走势精准分割保护。</p>
+  <p class="meta-desc">工匠们将数万件大木构件逐一测量编号，最终把整座宫殿完整迁至<strong>二十公里外的龙泉村高地</strong>原样拼装复原，创下世界大型木构文物<strong>原构整体迁移</strong>的典范。</p>
+  </div>
+  <div class="meta-bottom-block">
+  <div class="meta-stats-grid">
+  <div class="meta-stat-item">
+  <span class="meta-stat-val">近 10 载</span>
+  <span class="meta-stat-lbl">迁建工程历时</span>
+  </div>
+  <div class="meta-stat-item">
+  <span class="meta-stat-val">400 ㎡+</span>
+  <span class="meta-stat-lbl">无损揭取壁画</span>
+  </div>
+  <div class="meta-stat-item">
+  <span class="meta-stat-val">20 公里</span>
+  <span class="meta-stat-lbl">原构异地迁建</span>
+  </div>
+  </div>
+  <div class="meta-action-group">
+  <button type="button" class="action-inspect-btn" data-toggle="1">
+  <span class="btn-emblem">❖</span>
+  <span class="btn-text">查看搬迁图解</span>
+  <span class="btn-arrow">▸</span>
+  </button>
+  </div>
+  </div>
+  </div>
+  <div class="art-stage" id="artStage1">
+  <!-- 图层 A：高清实景大搬迁绘卷 -->
+  <div class="view-layer layer-overview">
+  <img class="hero-render-img" loading="lazy" src="yongle_relocation.jpeg" alt="永乐宫整体搬迁工程绘卷">
+  </div>
+  <!-- 图层 B：搬迁动效图解 (营造水利舆图墨线图) -->
+  <div class="view-layer layer-diagram">
+  <div class="relocation-diagram">
+  <div class="diagram-title-bar">
+  <span class="diag-title">永乐宫三门峡落架迁建舆图</span>
+  <span class="diag-tag">落差35米 · 迁移20公里</span>
+  </div>
+  <div class="treatise-board">
+  <svg class="relocation-svg" viewBox="0 0 380 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 古籍开版双边框与界栏 -->
+  <rect x="6" y="6" width="368" height="188" stroke="#2b2520" stroke-width="1.2" fill="none"/>
+  <rect x="10" y="10" width="360" height="180" stroke="rgba(194, 159, 104, 0.6)" stroke-width="0.8" fill="none"/>
+  <!-- 图样标签（保持精确居中） -->
+  <rect x="16" y="14" width="154" height="20" rx="2" fill="rgba(250, 246, 237, 0.98)" stroke="#2b2520" stroke-width="0.8"/>
+  <text x="93" y="24" text-anchor="middle" dominant-baseline="central" fill="#2b2520" font-size="9.5" font-weight="bold" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">【图样 · 水部】永乐宫迁建舆图</text>
+  <!-- 水墨地形山势断面 (落差 35m) -->
+  <path d="M 12 165 C 60 165, 90 165, 120 165 C 160 165, 200 120, 240 100 C 280 80, 320 80, 368 80" stroke="#3b322a" stroke-width="1.5" fill="none"/>
+  <path d="M 12 165 C 60 165, 90 165, 120 165 C 160 165, 200 120, 240 100 C 280 80, 320 80, 368 80 L 368 188 L 12 188 Z" fill="rgba(230, 220, 203, 0.35)"/>
+  <path d="M 140 150 Q 180 110 210 125 T 260 90 T 320 70" stroke="rgba(43, 37, 32, 0.3)" stroke-width="0.8" stroke-dasharray="3 2" fill="none"/>
+  <!-- 水库水纹波动动效 (位于底层半透明) -->
+  <path d="M 14 135 Q 26 130 38 135 T 62 135 T 86 135 T 110 135 T 134 135" stroke="rgba(42, 82, 136, 0.55)" stroke-width="0.9" fill="none" class="water-wave-line"/>
+  <path d="M 18 145 Q 30 140 42 145 T 66 145 T 90 145 T 114 145 T 138 145" stroke="rgba(42, 82, 136, 0.4)" stroke-width="0.8" fill="none" class="water-wave-line"/>
+  <path d="M 14 155 Q 26 150 38 155 T 62 155 T 86 155 T 110 155 T 134 155" stroke="rgba(42, 82, 136, 0.3)" stroke-width="0.8" fill="none" class="water-wave-line"/>
+  <!-- 三门峡水库蓄水位基准虚线 (高程 335m) -->
+  <path d="M 12 126 L 145 126" stroke="#2a5288" stroke-width="1.2" stroke-dasharray="4 2"/>
+  <!-- 迁移轨迹虚线与箭头（底层平滑起伏，不遮挡任何文字标签） -->
+  <path d="M 75 142 C 145 142, 205 98, 288 60" stroke="#b33928" stroke-width="1.8" stroke-linecap="round" fill="none" class="cinnabar-flow-line"/>
+  <polygon points="291,60 281,56 284,64" fill="#b33928"/>
+  <!-- 水位说明框（上移至 y=88 纯净空白区，彻底避开轨迹线与文字干涉） -->
+  <rect x="14" y="88" width="136" height="17" rx="2" fill="rgba(250, 246, 237, 0.98)" stroke="rgba(42, 82, 136, 0.45)" stroke-width="0.8"/>
+  <text x="82" y="96.5" text-anchor="middle" dominant-baseline="central" fill="#2a5288" font-size="9" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">三门峡水库蓄水位 · 海拔335米</text>
+  <!-- 迁移说明框（独立置于轨迹弧线上方安全空间） -->
+  <rect x="135" y="60" width="138" height="17" rx="2" fill="rgba(250, 246, 237, 0.98)" stroke="rgba(179, 57, 40, 0.45)" stroke-width="0.8"/>
+  <text x="204" y="68.5" text-anchor="middle" dominant-baseline="central" fill="#b33928" font-size="9" font-weight="bold" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">无损落架迁移二十公里 →</text>
+  <!-- 永乐宫原址建筑小木构（原址淹没） -->
+  <g transform="translate(48, 136)">
+  <path d="M 0 16 L 15 6 L 30 16 Z" stroke="#2b2520" stroke-width="1" fill="#fdfaf3"/>
+  <line x1="2" y1="16" x2="28" y2="16" stroke="#2b2520" stroke-width="1"/>
+  <rect x="4" y="16" width="22" height="12" stroke="#2b2520" stroke-width="0.9" fill="#fdfaf3"/>
+  <line x1="11" y1="16" x2="11" y2="28" stroke="#2b2520" stroke-width="0.7"/>
+  <line x1="19" y1="16" x2="19" y2="28" stroke="#2b2520" stroke-width="0.7"/>
+  </g>
+  <rect x="18" y="169" width="94" height="17" rx="2" fill="rgba(250, 246, 237, 0.98)" stroke="rgba(179, 57, 40, 0.35)" stroke-width="0.7"/>
+  <text x="65" y="177.5" text-anchor="middle" dominant-baseline="central" fill="#b33928" font-size="9.2" font-weight="bold" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">永乐镇旧址 (淹没区)</text>
+  <!-- 迁建龙泉村新址建筑小木构 (海拔 370m) -->
+  <g transform="translate(295, 46)">
+  <path d="M 0 16 L 15 6 L 30 16 Z" stroke="#2b2520" stroke-width="1" fill="#fdfaf3"/>
+  <line x1="2" y1="16" x2="28" y2="16" stroke="#2b2520" stroke-width="1"/>
+  <rect x="4" y="16" width="22" height="12" stroke="#2b2520" stroke-width="0.9" fill="#fdfaf3"/>
+  <line x1="11" y1="16" x2="11" y2="28" stroke="#2b2520" stroke-width="0.7"/>
+  <line x1="19" y1="16" x2="19" y2="28" stroke="#2b2520" stroke-width="0.7"/>
+  </g>
+  <rect x="234" y="24" width="130" height="18" rx="2" fill="rgba(250, 246, 237, 0.98)" stroke="rgba(43, 110, 88, 0.45)" stroke-width="0.8"/>
+  <text x="299" y="33" text-anchor="middle" dominant-baseline="central" fill="#2b6e58" font-size="9.2" font-weight="bold" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">龙泉村新址 (海拔370米)</text>
+  <!-- 落差标尺与标注 -->
+  <line x1="352" y1="80" x2="352" y2="165" stroke="#7d6f61" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="348" y1="80" x2="356" y2="80" stroke="#7d6f61" stroke-width="1.2"/>
+  <line x1="348" y1="165" x2="356" y2="165" stroke="#7d6f61" stroke-width="1.2"/>
+  <text x="325" y="125" text-anchor="middle" dominant-baseline="central" fill="#55483d" font-size="9" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">落差35米</text>
+  </svg>
+  </div>
+  <div class="relocation-timeline">
+  <div class="timeline-axis-track"></div>
+  <div class="timeline-milestone">
+  <div class="milestone-dot">
+  <span class="dot-inner"></span>
+  <span class="dot-ring"></span>
+  </div>
+  <div class="milestone-text">
+  <span class="milestone-year">1959</span>
+  <span class="milestone-head">壁画分块揭取</span>
+  <span class="milestone-detail">制作夹板整体加固</span>
+  </div>
+  </div>
+  <div class="timeline-milestone">
+  <div class="milestone-dot">
+  <span class="dot-inner"></span>
+  <span class="dot-ring"></span>
+  </div>
+  <div class="milestone-text">
+  <span class="milestone-year">1962</span>
+  <span class="milestone-head">大木落架测绘</span>
+  <span class="milestone-detail">万余构件编号迁运</span>
+  </div>
+  </div>
+  <div class="timeline-milestone">
+  <div class="milestone-dot">
+  <span class="dot-inner"></span>
+  <span class="dot-ring"></span>
+  </div>
+  <div class="milestone-text">
+  <span class="milestone-year">1966</span>
+  <span class="milestone-head">高地原样复原</span>
+  <span class="milestone-detail">精准榫卯拼装封顶</span>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  <!-- 折页 2：朝元图工笔重彩与六大矿物微观 (初始激活) -->
+  <div class="card-fold" data-fold="2">
+  <div class="collapsed-strip">
+  <span class="strip-cat-tag">重彩</span>
+  <span class="strip-main-title">朝元真容</span>
+  <span class="strip-axis-line"></span>
+  <div class="strip-icon">真</div>
+  </div>
+  <!-- 收拢态工笔白描微显：神兽白虎回首与飞仙云带 -->
+  <div class="peek-artwork peek-artwork-2">
+  <img src="assets_ui/s4_peek_2.webp" alt="前瞻背景线稿·主峰">
+  </div>
+  <div class="expanded-content">
+  <div class="detail-meta">
+  <div class="meta-top-block">
+  <span class="meta-tag">物质科学 · 朝元图矿物色谱考</span>
+  <h3>工笔重彩与朝元图真容</h3>
+  <div class="meta-question">历经七百多年岁月，<br>为什么壁画上的颜色依然鲜艳如新？</div>
+  <p class="meta-desc">三清殿《朝元图》描绘近三百位神仙朝谒的壮阔队列，画师全幅选用<strong>天然矿物结晶</strong>研磨设色：主将头戴孔雀石绿花冠、身覆蓝铜矿石青重铠、脚踏纯朱砂战靴，白虎坐骑以<strong>天然蛤粉</strong>分染绒毛。</p>
+  <p class="meta-desc">神仙仪仗行进于雌黄、赭石叠晕的五彩祥云之上，并施以<strong>“沥粉贴金”与“双勾泥金”</strong>工艺。高纯度矿物色耐光耐腐，使巨作历经<strong>七百余年风霜</strong>依然金碧交辉。</p>
+  </div>
+  <div class="meta-bottom-block">
+  <div class="meta-stats-grid">
+  <div class="meta-stat-item">
+  <span class="meta-stat-val">6 大主色</span>
+  <span class="meta-stat-lbl">天然矿物结晶</span>
+  </div>
+  <div class="meta-stat-item">
+  <span class="meta-stat-val">沥粉贴金</span>
+  <span class="meta-stat-lbl">立体勾勒工艺</span>
+  </div>
+  <div class="meta-stat-item">
+  <span class="meta-stat-val">700 余年</span>
+  <span class="meta-stat-lbl">色泽历久弥新</span>
+  </div>
+  </div>
+  <div class="meta-action-group">
+  <button type="button" class="action-inspect-btn" data-toggle="2">
+  <span class="btn-emblem">❖</span>
+  <span class="btn-text">查看矿物色谱</span>
+  <span class="btn-arrow">▸</span>
+  </button>
+  </div>
+  </div>
+  </div>
+  <div class="art-stage" id="artStage2">
+  <!-- 图层 A：朝元图群仙朝拜总图 (配图 7) -->
+  <div class="view-layer layer-overview">
+  <img class="hero-render-img" loading="lazy" src="yongle_mineral7.jpg" alt="永乐宫朝元图壁画总图">
+  </div>
+  <!-- 图层 B：六大矿物标本与微观色谱图解台 (配图 1 ~ 6) -->
+  <div class="view-layer layer-diagram">
+  <div class="minerals-diagram">
+  <div class="diagram-title-bar">
+  <span class="diag-title" style="white-space: nowrap; font-size: 1.52vh; letter-spacing: 0.08vh; overflow: visible;">朝元图六大微观部位矿物设色与沥粉泥金考据</span>
+  </div>
+  <div class="mural-canvas-stage">
+  <img id="diagramMineralImg" src="yongle_mineral1.jpg" alt="矿物细节放大">
+  </div>
+  <div id="diagramMineralTag" class="diagram-caption-pill">细节一 · 冠首开相（孔雀石绿雀翎 · 浓焦墨怒目铁线描）</div>
+  <div class="specimens-grid">
+  <div class="specimen-card active" data-mineral-img="yongle_mineral1.jpg" data-caption="细节一 · 冠首开相（孔雀石绿雀翎 · 浓焦墨怒目铁线描）" style="--accent-color: #2b6e58;">
+  <div class="mineral-crystal" style="background: radial-gradient(circle at 35% 35%, #429d7f 0%, #1e5241 100%);"></div>
+  <span class="mineral-name">冠首开相</span>
+  <span class="mineral-usage">孔雀石绿<br>焦墨铁线</span>
+  </div>
+  <div class="specimen-card" data-mineral-img="yongle_mineral2.jpg" data-caption="细节二 · 兽面吞口（蓝铜矿石青胸甲 · 沥粉贴金狮蛮）" style="--accent-color: #2a5288;">
+  <div class="mineral-crystal" style="background: radial-gradient(circle at 35% 35%, #4a7bbd 0%, #1c3c69 100%);"></div>
+  <span class="mineral-name">兽面吞口</span>
+  <span class="mineral-usage">蓝铜石青<br>沥粉堆金</span>
+  </div>
+  <div class="specimen-card" data-mineral-img="yongle_mineral3.jpg" data-caption="细节三 · 莲瓣战靴（天然纯朱砂战靴 · 翻卷石绿莲瓣）" style="--accent-color: #b33928;">
+  <div class="mineral-crystal" style="background: radial-gradient(circle at 35% 35%, #d85744 0%, #8c2618 100%);"></div>
+  <span class="mineral-name">莲瓣战靴</span>
+  <span class="mineral-usage">天然朱砂<br>翻卷石绿</span>
+  </div>
+  <div class="specimen-card" data-mineral-img="yongle_mineral4.jpg" data-caption="细节四 · 掌擎灵珠（紫金太极灵珠 · 轮宝护臂神光）" style="--accent-color: #9c4b78;">
+  <div class="mineral-crystal" style="background: radial-gradient(circle at 35% 35%, #ba588f 0%, #68264e 100%);"></div>
+  <span class="mineral-name">掌擎灵珠</span>
+  <span class="mineral-usage">紫金太极<br>轮宝青金</span>
+  </div>
+  <div class="specimen-card" data-mineral-img="yongle_mineral5.jpg" data-caption="细节五 · 白虎噬首（珍珠蛤粉染白虎 · 碧玉眼眸与龙鳞）" style="--accent-color: #4b8b7e;">
+  <div class="mineral-crystal" style="background: radial-gradient(circle at 35% 35%, #e8f5f1 0%, #69a89b 100%);"></div>
+  <span class="mineral-name">白虎坐骑</span>
+  <span class="mineral-usage">珍珠蛤粉<br>碧玉喉鳞</span>
+  </div>
+  <div class="specimen-card" data-mineral-img="yongle_mineral6.jpg" data-caption="细节六 · 勾金祥云（雌黄赭石叠晕 · 泥金双勾道家瑞云）" style="--accent-color: #d99b3b;">
+  <div class="mineral-crystal" style="background: radial-gradient(circle at 35% 35%, #f7c97e 0%, #ad6d1a 100%);"></div>
+  <span class="mineral-name">勾金祥云</span>
+  <span class="mineral-usage">雌黄赭石<br>双勾泥金</span>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  <!-- 折页 3：减柱造力学 -->
+  <div class="card-fold" data-fold="3">
+  <div class="collapsed-strip">
+  <span class="strip-cat-tag">力学</span>
+  <span class="strip-main-title">减柱空间</span>
+  <span class="strip-axis-line"></span>
+  <div class="strip-icon">构</div>
+  </div>
+  <!-- 收拢态工笔白描微显：营造法式七铺作斗拱与昂嘴榫卯 -->
+  <div class="peek-artwork peek-artwork-3">
+  <img src="assets_ui/s4_peek_3.webp" alt="前瞻背景线稿·东崖">
+  </div>
+  <div class="expanded-content">
+  <div class="detail-meta">
+  <div class="meta-top-block">
+  <span class="meta-tag">营造法式 · 减柱造力学</span>
+  <h3>减柱造力学</h3>
+  <div class="meta-question">这么大进深的宏伟殿堂，<br>中间为什么没有密集的承重柱？</div>
+  <p class="meta-desc">传统大型殿堂多在内部排列密集立柱以分担屋顶荷载，难免阻挡室内视线。三清殿采用元代成熟的<strong>“减柱造”力学手法</strong>，大胆抽去殿内前槽金柱。</p>
+  <p class="meta-desc">工匠通过抬高大梁、拉大梁架跨度，配合外檐层层出挑的<strong>七铺作大斗拱</strong>，将数十吨屋面重量巧妙引流分散至四周外墙，在殿心营造出<strong>完全无遮挡的观画空间</strong>。</p>
+  </div>
+  <div class="meta-bottom-block">
+  <div class="meta-stats-grid">
+  <div class="meta-stat-item">
+  <span class="meta-stat-val">七铺作</span>
+  <span class="meta-stat-lbl">外檐出挑斗拱</span>
+  </div>
+  <div class="meta-stat-item">
+  <span class="meta-stat-val">减柱造</span>
+  <span class="meta-stat-lbl">省去前槽金柱</span>
+  </div>
+  <div class="meta-stat-item">
+  <span class="meta-stat-val">100% 通阔</span>
+  <span class="meta-stat-lbl">殿心无遮视野</span>
+  </div>
+  </div>
+  <div class="meta-action-group">
+  <button type="button" class="action-inspect-btn" data-toggle="3">
+  <span class="btn-emblem">❖</span>
+  <span class="btn-text">查看受力分析</span>
+  <span class="btn-arrow">▸</span>
+  </button>
+  </div>
+  </div>
+  </div>
+  <div class="art-stage" id="artStage3">
+  <!-- 图层 A：高清减柱造大木构实景 -->
+  <div class="view-layer layer-overview">
+  <img class="hero-render-img" loading="lazy" src="yongle_structure.jpeg" alt="三清殿减柱造大木构架">
+  </div>
+  <!-- 图层 B：减柱造力学墨线动效剖面 (营造法式大木作规矩图) -->
+  <div class="view-layer layer-diagram">
+  <div class="structure-diagram">
+  <div class="diagram-title-bar">
+  <span class="diag-title">三清殿四椽栿减柱造受力规矩图</span>
+  <span class="diag-tag">跨度15米 · 零遮挡视廊</span>
+  </div>
+  <div class="treatise-board">
+  <svg class="structure-svg" viewBox="0 0 380 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 古籍开版双边框与界栏 -->
+  <rect x="6" y="6" width="368" height="188" stroke="#2b2520" stroke-width="1.2" fill="none"/>
+  <rect x="10" y="10" width="360" height="180" stroke="rgba(194, 159, 104, 0.6)" stroke-width="0.8" fill="none"/>
+  <!-- 屋顶两侧严格对称规矩标签框 -->
+  <!-- 左侧规矩图名框 (x: 20 ~ 180, 距中线190为10px, 距左外框线10为10px) -->
+  <rect x="20" y="13" width="160" height="18" rx="2" fill="rgba(250, 246, 237, 0.96)" stroke="#2b2520" stroke-width="0.8"/>
+  <text x="100" y="22" text-anchor="middle" dominant-baseline="central" fill="#2b2520" font-size="8.8" font-weight="bold" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">【营造法式】三清殿减柱剖面</text>
+  <!-- 右侧自重荷载框 (x: 200 ~ 360, 距中线190为10px, 距右外框线370为10px) -->
+  <rect x="200" y="13" width="160" height="18" rx="2" fill="rgba(250, 246, 237, 0.96)" stroke="rgba(179, 57, 40, 0.45)" stroke-width="0.8"/>
+  <text x="280" y="22" text-anchor="middle" dominant-baseline="central" fill="#b33928" font-size="8.8" font-weight="bold" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">屋面数十吨自重荷载 ↓</text>
+  <path d="M 190 32 L 190 54" stroke="#b33928" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="190,57 186,49 194,49" fill="#b33928"/>
+  <!-- 殿顶重檐与屋脊斜线 (起止坐标精细调整，完全避让题签与荷载文字) -->
+  <path d="M 28 50 L 190 32 L 352 50" stroke="#3b322a" stroke-width="2.2" fill="none"/>
+  <!-- 四椽栿特大跨度横梁（横梁内精确居中） -->
+  <rect x="52" y="58" width="276" height="18" rx="2" fill="#d9cbba" stroke="#2b2520" stroke-width="1.3"/>
+  <text x="190" y="67" text-anchor="middle" dominant-baseline="central" fill="#2b2520" font-size="9.5" font-weight="bold" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">超大跨度四椽栿大梁</text>
+  <!-- 屋面重量向两端分流箭头（力学分流路径动效） -->
+  <path d="M 175 63 L 75 63" stroke="#b33928" stroke-width="2" fill="none" class="cinnabar-flow-line"/>
+  <polygon points="70,63 78,60 78,66" fill="#b33928"/>
+  <path d="M 205 63 L 305 63" stroke="#b33928" stroke-width="2" fill="none" class="cinnabar-flow-line"/>
+  <polygon points="310,63 302,60 302,66" fill="#b33928"/>
+  <!-- 两侧七铺作重叠出挑斗拱组 -->
+  <g transform="translate(62, 78)">
+  <rect x="0" y="0" width="24" height="5" fill="#eadeca" stroke="#2b2520" stroke-width="0.9"/>
+  <rect x="-3" y="5" width="30" height="5" fill="#eadeca" stroke="#2b2520" stroke-width="0.9"/>
+  <rect x="-6" y="10" width="36" height="6" fill="#eadeca" stroke="#2b2520" stroke-width="0.9"/>
+  <text x="-12" y="12" text-anchor="end" fill="#55483d" font-size="8.5" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">七铺作斗拱</text>
+  </g>
+  <g transform="translate(294, 78)">
+  <rect x="0" y="0" width="24" height="5" fill="#eadeca" stroke="#2b2520" stroke-width="0.9"/>
+  <rect x="-3" y="5" width="30" height="5" fill="#eadeca" stroke="#2b2520" stroke-width="0.9"/>
+  <rect x="-6" y="10" width="36" height="6" fill="#eadeca" stroke="#2b2520" stroke-width="0.9"/>
+  <text x="36" y="12" fill="#55483d" font-size="8.5" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">七铺作斗拱</text>
+  </g>
+  <!-- 粗壮外檐檐柱（双勾实木立柱与柱础） -->
+  <rect x="67" y="94" width="14" height="80" fill="#f4ebd9" stroke="#2b2520" stroke-width="1.2"/>
+  <rect x="63" y="174" width="22" height="6" fill="#ded4c3" stroke="#2b2520" stroke-width="1"/>
+  <path d="M 74 100 L 74 165" stroke="#b33928" stroke-width="2" fill="none" class="cinnabar-flow-line"/>
+  <polygon points="74,170 71,162 77,162" fill="#b33928"/>
+  <rect x="299" y="94" width="14" height="80" fill="#f4ebd9" stroke="#2b2520" stroke-width="1.2"/>
+  <rect x="295" y="174" width="22" height="6" fill="#ded4c3" stroke="#2b2520" stroke-width="1"/>
+  <path d="M 306 100 L 306 165" stroke="#b33928" stroke-width="2" fill="none" class="cinnabar-flow-line"/>
+  <polygon points="306,170 303,162 309,162" fill="#b33928"/>
+  <!-- 中央 15 米无柱视线走廊（减柱造精髓） -->
+  <rect x="88" y="94" width="204" height="80" fill="rgba(43, 110, 88, 0.05)" stroke="#2b6e58" stroke-width="1" stroke-dasharray="4 3"/>
+  <!-- 减去金柱的虚线柱影与说明框（框内绝对居中） -->
+  <line x1="135" y1="94" x2="135" y2="174" stroke="rgba(179, 57, 40, 0.35)" stroke-width="1.2" stroke-dasharray="2 2"/>
+  <rect x="108" y="100" width="54" height="15" rx="2" fill="rgba(250, 246, 237, 0.94)" stroke="rgba(179, 57, 40, 0.25)" stroke-width="0.6"/>
+  <text x="135" y="107.5" text-anchor="middle" dominant-baseline="central" fill="rgba(179, 57, 40, 0.85)" font-size="8.5" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">（减去前金柱）</text>
+  <line x1="245" y1="94" x2="245" y2="174" stroke="rgba(179, 57, 40, 0.35)" stroke-width="1.2" stroke-dasharray="2 2"/>
+  <rect x="218" y="100" width="54" height="15" rx="2" fill="rgba(250, 246, 237, 0.94)" stroke="rgba(179, 57, 40, 0.25)" stroke-width="0.6"/>
+  <text x="245" y="107.5" text-anchor="middle" dominant-baseline="central" fill="rgba(179, 57, 40, 0.85)" font-size="8.5" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">（减去内金柱）</text>
+  <!-- 中央视界说明墨书（轴线居中） -->
+  <text x="190" y="136" text-anchor="middle" dominant-baseline="central" fill="#2b6e58" font-size="10.5" font-weight="bold" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">减去内柱 · 跨度十五米豁然通阔</text>
+  <text x="190" y="152" text-anchor="middle" dominant-baseline="central" fill="#55483d" font-size="9" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">四壁四百余平米朝元图壁画零遮挡全景视界</text>
+  </svg>
+  </div>
+  <div class="force-metrics">
+  <div class="metric-pill">
+  <strong>【大木导力】</strong>屋面数十吨自重经四椽栿大梁与七铺作斗拱，悉数引流导至四周边墙立柱。
+  </div>
+  <div class="metric-pill">
+  <strong>【虚堂视界】</strong>大殿内部彻底抽空金柱，创设十五米无柱通阔空间，巨幅壁画尽收眼底。
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  </div>
+  <!-- 观景位 0/1/2/3/4：古建构件与苍松/仙鹤水墨交互 -->
+  <div id="building-hotspots">
+  <!-- 【场景零 · 序卷】左侧近景苍松右侧纯文字提示 (与仙鹤同款无框黑字左指箭头) -->
+  <div class="crane-hotspot" id="tree-hotspot" title="点击苍松展读三筑总览">
+  <span class="crane-prompt-arrow">◂</span>
+  <span class="crane-prompt-text">点击苍松 · 三筑总览</span>
+  </div>
+  <!-- 【场景四 · 芮城永乐宫】仙鹤右侧纯文字提示 (无边框·金辉朱砂呼吸光) -->
+  <div class="crane-hotspot" id="crane-hotspot" title="点击仙鹤展读考据">
+  <span class="crane-prompt-arrow">◂</span>
+  <span class="crane-prompt-text">点击仙鹤 · 启卷考据</span>
+  </div>
+  <!-- 【场景一 · 介休祆神楼】屋顶脊兽详解醒目交互入口（引注节点深度交互，无红章） -->
+  <div class="specimen-hotspot roof-beast-entry" id="hotspot-0">
+  <div class="specimen-anchor">
+  <div class="anchor-core"></div>
+  <div class="anchor-ripple ripple-outer"></div>
+  <div class="anchor-ripple ripple-inner"></div>
+  </div>
+  <svg class="roof-entry-leader" viewBox="0 0 110 48">
+  <polyline points="0,46 38,14 92,14" fill="none" stroke="rgba(43, 35, 29, 0.85)" stroke-width="1.35"/>
+  <circle cx="0" cy="46" r="2.6" fill="#b22d26"/>
+  <circle cx="92" cy="14" r="2.2" fill="#2b231d"/>
+  </svg>
+  <div class="roof-entry-plaque" id="roofBeastEntryPlaque">
+  <div class="roof-entry-text-group">
+  <span class="roof-entry-main-title">屋顶脊兽详解 · 点击查看</span>
+  <span class="roof-entry-sub-hint">五大明代三彩琉璃构件 · 实况图鉴</span>
+  </div>
+  <span class="roof-entry-arrow">➔</span>
+  </div>
+  </div>
+  <!-- 【场景一 · 介休祆神楼】构件 1：过街戏台与莲花托角斗栱 (简单介绍节点：高对比单行胶囊) -->
+  <div class="specimen-hotspot" id="hotspot-1">
+  <div class="specimen-anchor">
+  <div class="anchor-core"></div>
+  <div class="anchor-ripple ripple-outer"></div>
+  <div class="anchor-ripple ripple-inner"></div>
+  <div class="anchor-tag">
+  <span class="anchor-tag-text">戏台斗栱 · 详情</span>
+  <span class="anchor-tag-arrow">→</span>
+  </div>
+  </div>
+  <div class="specimen-callout callout-left-top">
+  <svg class="leader-line-svg" width="130" height="38" viewBox="0 0 130 38">
+  <polyline points="130,30 75,10 5,10" fill="none" stroke="rgba(43, 35, 29, 0.55)" stroke-width="0.9"/>
+  <circle cx="130" cy="30" r="2.2" fill="#b22d26"/>
+  <circle cx="5" cy="10" r="1.8" fill="#2b231d"/>
+  </svg>
+  <div class="callout-card card-left">
+  <div class="callout-title-row">
+  <span class="callout-title">过街戏台莲花托角斗栱</span>
+  </div>
+  <div class="callout-sub">
+  <span>下设过街通道贯通市井 · 戏台与过街楼融为一体</span>
+  <span>三层斗栱层层悬挑出廊 · 精雕木作莲花托角承重受力</span>
+  </div>
+  <div class="callout-hint">点击空白处返回全景 · 再次点击节点复位</div>
+  </div>
+  </div>
+  </div>
+  <!-- 【场景三 · 浑源悬空寺】构件 2：万仞绝壁半插飞梁 (简单介绍节点：高对比单行胶囊) -->
+  <div class="specimen-hotspot" id="hotspot-2">
+  <div class="specimen-anchor">
+  <div class="anchor-core"></div>
+  <div class="anchor-ripple ripple-outer"></div>
+  <div class="anchor-ripple ripple-inner"></div>
+  <div class="anchor-tag">
+  <span class="anchor-tag-text">半插飞梁 · 详情</span>
+  <span class="anchor-tag-arrow">→</span>
+  </div>
+  </div>
+  <div class="specimen-callout callout-left-top">
+  <svg class="leader-line-svg" width="130" height="38" viewBox="0 0 130 38">
+  <polyline points="130,30 75,10 5,10" fill="none" stroke="rgba(43, 35, 29, 0.55)" stroke-width="0.9"/>
+  <circle cx="130" cy="30" r="2.2" fill="#b22d26"/>
+  <circle cx="5" cy="10" r="1.8" fill="#2b231d"/>
+  </svg>
+  <div class="callout-card card-left">
+  <div class="callout-title-row">
+  <span class="callout-title">万仞绝壁半插飞梁</span>
+  </div>
+  <div class="callout-sub">
+  <span>半插飞梁以岩为托 · 铁箍榫卯深嵌崖槽奇险承重</span>
+  <span>下临深谷立木不着力 · 借力卸力化解危楼自重力学</span>
+  </div>
+  <div class="callout-hint">点击空白处返回全景 · 再次点击节点复位</div>
+  </div>
+  </div>
+  </div>
+  <!-- 【场景三 · 浑源悬空寺】构件 3：三教殿悬空楼阁 (简单介绍节点：高对比单行胶囊) -->
+  <div class="specimen-hotspot" id="hotspot-3">
+  <div class="specimen-anchor">
+  <div class="anchor-core"></div>
+  <div class="anchor-ripple ripple-outer"></div>
+  <div class="anchor-ripple ripple-inner"></div>
+  <div class="anchor-tag">
+  <span class="anchor-tag-text">悬空楼阁 · 详情</span>
+  <span class="anchor-tag-arrow">→</span>
+  </div>
+  </div>
+  <div class="specimen-callout callout-left-top">
+  <svg class="leader-line-svg" width="130" height="38" viewBox="0 0 130 38">
+  <polyline points="130,30 75,10 5,10" fill="none" stroke="rgba(43, 35, 29, 0.55)" stroke-width="0.9"/>
+  <circle cx="130" cy="30" r="2.2" fill="#b22d26"/>
+  <circle cx="5" cy="10" r="1.8" fill="#2b231d"/>
+  </svg>
+  <div class="callout-card card-left">
+  <div class="callout-title-row">
+  <span class="callout-title">三教殿悬空楼阁</span>
+  </div>
+  <div class="callout-sub">
+  <span>儒释道三教同殿和睦共处 · 凌空殿阁贴崖悬飞相扣</span>
+  <span>危楼悬跨万仞翠微石壁 · 飞廊栈道回环移步换景</span>
+  </div>
+  <div class="callout-hint">点击空白处返回全景 · 再次点击节点复位</div>
+  </div>
+  </div>
+  </div>
+  <!-- 【场景五 · 芮城永乐宫】构件 4：三清殿元代琉璃巨鸱吻 (简单介绍节点：高对比单行胶囊) -->
+  <div class="specimen-hotspot" id="hotspot-4">
+  <div class="specimen-anchor">
+  <div class="anchor-core"></div>
+  <div class="anchor-ripple ripple-outer"></div>
+  <div class="anchor-ripple ripple-inner"></div>
+  <div class="anchor-tag">
+  <span class="anchor-tag-text">琉璃鸱吻 · 详情</span>
+  <span class="anchor-tag-arrow">→</span>
+  </div>
+  </div>
+  <div class="specimen-callout callout-right-top">
+  <svg class="leader-line-svg" width="130" height="38" viewBox="0 0 130 38">
+  <polyline points="0,30 55,10 125,10" fill="none" stroke="rgba(43, 35, 29, 0.55)" stroke-width="0.9"/>
+  <circle cx="0" cy="30" r="2.2" fill="#b22d26"/>
+  <circle cx="125" cy="10" r="1.8" fill="#2b231d"/>
+  </svg>
+  <div class="callout-card card-right">
+  <div class="callout-title-row">
+  <span class="callout-title">三清殿元代琉璃鸱吻</span>
+  </div>
+  <div class="callout-sub">
+  <span>通高逾三米元代琉璃巨构 · 全国现存单体最大鸱吻</span>
+  <span>张口吞脊龙形尾卷雄浑 · 官式歇山大木作之顶峰巨制</span>
+  </div>
+  <div class="callout-hint">点击空白处返回全景 · 再次点击节点复位</div>
+  </div>
+  </div>
+  </div>
+  <!-- 【场景五 · 芮城永乐宫】构件 5：殿心朝元图矿物壁画 (与卷一屋顶同款引注节点深度交互入口，无红章) -->
+  <div class="specimen-hotspot roof-beast-entry" id="hotspot-5">
+  <div class="specimen-anchor">
+  <div class="anchor-core"></div>
+  <div class="anchor-ripple ripple-outer"></div>
+  <div class="anchor-ripple ripple-inner"></div>
+  </div>
+  <svg class="roof-entry-leader" viewBox="0 0 110 48">
+  <polyline points="0,46 38,14 92,14" fill="none" stroke="rgba(43, 35, 29, 0.85)" stroke-width="1.35"/>
+  <circle cx="0" cy="46" r="2.6" fill="#b22d26"/>
+  <circle cx="92" cy="14" r="2.2" fill="#2b231d"/>
+  </svg>
+  <div class="roof-entry-plaque">
+  <div class="roof-entry-text-group">
+  <span class="roof-entry-main-title">殿心朝元图详解 · 点击探索</span>
+  <span class="roof-entry-sub-hint">移动光标透视 · 矿物重彩瞬间复原</span>
+  </div>
+  <span class="roof-entry-arrow">➔</span>
+  </div>
+  <div class="specimen-callout callout-mural-left">
+  <svg class="leader-line-svg" width="280" height="48" viewBox="0 0 280 48">
+  <polyline points="280,38 180,12 10,12" fill="none" stroke="rgba(43, 35, 29, 0.55)" stroke-width="0.9"/>
+  <circle cx="280" cy="38" r="2.2" fill="#b22d26"/>
+  <circle cx="10" cy="12" r="1.8" fill="#2b231d"/>
+  </svg>
+  <div class="callout-card card-left">
+  <div class="callout-title-row">
+  <span class="callout-title">殿心朝元图重彩壁画</span>
+  </div>
+  <div class="callout-sub">
+  <span>武宗元画意石青石绿重彩 · 沥粉贴金辉映四百平米</span>
+  <span>群仙朝谒元始天尊仪仗 · 吴带当风曹衣出水绝代神品</span>
+  </div>
+  <div class="callout-hint">点击空白处返回全景 · 再次点击节点复位</div>
+  <div class="callout-hint">移动光标探索 · 透镜圆内青绿重彩瞬间复原</div>
+  </div>
+  </div>
+  </div>
+  </div>
+  <!-- 【场景一 · 介休祆神楼】中央宽幅中堂立轴（上画心 · 下横排考据 · 右侧五枚神兽切换名签） -->
+  <div id="scene1-beast-scroll-overlay">
+  <div class="s1-scroll-assembly" id="s1ScrollAssembly">
+  <!-- 顶部紫檀天杆 -->
+  <div class="s1-scroll-heaven-rod"></div>
+  <!-- 宣纸立轴主体 -->
+  <div class="s1-scroll-paper-body">
+  <!-- 顶部眉头题签栏 -->
+  <div class="s1-scroll-header">
+  <div class="s1-header-left">
+  <span class="s1-header-title">介休<ruby>祆<rt>xiān</rt></ruby>神楼 · 屋顶琉璃脊兽详解</span>
+  </div>
+  <div class="s1-header-close" id="s1ScrollCloseBtn">
+  <span>收起立轴 ✕</span>
+  </div>
+  </div>
+  <!-- 上画心：神兽微动实况展示区（点开自播一遍，鼠标悬停循环微动，移出恢复原画） -->
+  <div class="s1-scroll-artwork-stage" id="s1ArtworkStage">
+  <div class="s1-stage-nav-btn prev" id="s1PrevBeastBtn" title="上一尊脊兽">‹</div>
+  <img id="s1BeastPosterImg" class="s1-poster-img" src="live/1_poster.jpg" alt="琉璃脊兽原画">
+  <video id="s1BeastLiveVideo" class="s1-live-video" muted playsinline preload="auto"></video>
+  <div class="s1-stage-nav-btn next" id="s1NextBeastBtn" title="下一尊脊兽">›</div>
+  </div>
+  <!-- 下横排考据区（左至右横向阅读，与网页正文字体一致） -->
+  <div class="s1-scroll-lore-body">
+  <div class="s1-lore-title-bar">
+  <h3 class="s1-lore-main-title" id="s1BeastTitle">明代黄琉璃<ruby>蹙<rt>cù</rt></ruby>眉<ruby>獬<rt>xiè</rt></ruby><ruby>豸<rt>zhì</rt></ruby></h3>
+  <span class="s1-lore-meta-tag" id="s1BeastMetaTag">晋中琉璃 · 市井反差萌法兽</span>
+  </div>
+  <div class="s1-metrics-grid">
+  <div class="s1-metric-pill">
+  <span class="s1-pill-label">【琉璃釉色】</span>
+  <span class="s1-pill-val" id="s1PillColor">明代娇黄琉璃生釉</span>
+  </div>
+  <div class="s1-metric-pill">
+  <span class="s1-pill-label">【文化渊源】</span>
+  <span class="s1-pill-val" id="s1PillOrigin">介休琉璃世家匠作遗存</span>
+  </div>
+  <div class="s1-metric-pill">
+  <span class="s1-pill-label">【营造位置】</span>
+  <span class="s1-pill-val" id="s1PillLocation">下层垂脊单体走兽</span>
+  </div>
+  <div class="s1-metric-pill">
+  <span class="s1-pill-label">【象征寓意】</span>
+  <span class="s1-pill-val" id="s1PillMeaning">秉公明理 · 辟邪护宅</span>
+  </div>
+  </div>
+  <div class="s1-lore-sections">
+  <div class="s1-lore-section-box">
+  <div class="s1-lore-sec-heading">【特征解密】</div>
+  <div class="s1-lore-sec-content" id="s1BeastFeature"></div>
+  </div>
+  <div class="s1-lore-section-box">
+  <div class="s1-lore-sec-heading">【建筑与文化】</div>
+  <div class="s1-lore-sec-content" id="s1BeastCulture"></div>
+  </div>
+  </div>
+  </div>
+  </div>
+  <!-- 底部紫檀地轴与玉轴头 -->
+  <div class="s1-scroll-earth-roller"></div>
+  <!-- 右侧立轴边缘外挂 5 枚神兽切换名签（无红章繁体数字，生僻字上标拼音） -->
+  <div class="s1-hanging-tags-rail">
+  <div class="s1-beast-tag active" data-beast-idx="0">
+  <span class="s1-tag-label"><ruby>蹙<rt>cù</rt></ruby>眉<ruby>獬<rt>xiè</rt></ruby><ruby>豸<rt>zhì</rt></ruby></span>
+  </div>
+  <div class="s1-beast-tag" data-beast-idx="1">
+  <span class="s1-tag-label">卷尾<ruby>螭<rt>chī</rt></ruby>吻</span>
+  </div>
+  <div class="s1-beast-tag" data-beast-idx="2">
+  <span class="s1-tag-label">扬首望兽</span>
+  </div>
+  <div class="s1-beast-tag" data-beast-idx="3">
+  <span class="s1-tag-label">胡服骑翼兽</span>
+  </div>
+  <div class="s1-beast-tag" data-beast-idx="4">
+  <span class="s1-tag-label">楼阁脊<ruby>刹<rt>chà</rt></ruby></span>
+  </div>
+  </div>
+  </div>
+  </div>
+  <!-- 右上角「静音 / 清音」宋式倒角古印声景开关 -->
+  <button type="button" id="audio-seal-toggle" class="audio-seal-btn" aria-label="切换古琴背景音乐" title="点击静音或播放古琴背景音乐">
+    <span class="audio-seal-stamp" id="audioSealStamp">音</span>
+    <span class="audio-ink-bars" aria-hidden="true">
+      <i></i><i></i><i></i>
+    </span>
+    <span class="audio-seal-text" id="audioSealText">静音</span>
+  </button>
+  <!-- 底部宋式「乌丝栏界画尺」长卷游历刻度导航 (无底框双勾墨线 + 菱形花押 + 朱砂游标方印) -->
+  <nav id="scroll-nav-rail" aria-label="长卷章节导航">
+    <div class="scroll-nav-track">
+      <span class="track-corner track-corner-left" aria-hidden="true"></span>
+      <span class="track-corner track-corner-right" aria-hidden="true"></span>
+      <div class="scroll-nav-fill" id="scrollNavFill"></div>
+      <div class="scroll-nav-seal-cursor" id="scrollNavSealCursor" aria-hidden="true"><span>印</span></div>
+    </div>
+    <button type="button" class="scroll-nav-node active" data-stop="0" style="left: 0%;" title="序卷 · 初度入画">
+      <span class="scroll-nav-label"><em class="vol-prefix">序</em><i class="vol-sep">·</i><span class="vol-name">初庭</span></span>
+      <span class="scroll-nav-glyph">❖</span>
+    </button>
+    <button type="button" class="scroll-nav-node" data-stop="1" style="left: 33.333%;" title="卷一 · 介休祆神楼">
+      <span class="scroll-nav-label"><em class="vol-prefix">卷一</em><i class="vol-sep">·</i><span class="vol-name">祆神楼</span></span>
+      <span class="scroll-nav-glyph">❖</span>
+    </button>
+    <button type="button" class="scroll-nav-node is-sub" data-stop="2" style="left: 50%;" title="卷二前瞻 · 恒山绝壁与营建秘录">
+      <span class="scroll-nav-sub-hint">绝壁远眺</span>
+      <span class="scroll-nav-glyph">◇</span>
+    </button>
+    <button type="button" class="scroll-nav-node" data-stop="3" style="left: 66.667%;" title="卷二 · 浑源悬空寺">
+      <span class="scroll-nav-label"><em class="vol-prefix">卷二</em><i class="vol-sep">·</i><span class="vol-name">悬空寺</span></span>
+      <span class="scroll-nav-glyph">❖</span>
+    </button>
+    <button type="button" class="scroll-nav-node is-sub" data-stop="4" style="left: 83.333%;" title="卷三前瞻 · 瑞鹤临庭与考据折页">
+      <span class="scroll-nav-sub-hint">瑞鹤临庭</span>
+      <span class="scroll-nav-glyph">◇</span>
+    </button>
+    <button type="button" class="scroll-nav-node" data-stop="5" style="left: 100%;" title="卷三 · 芮城永乐宫">
+      <span class="scroll-nav-label"><em class="vol-prefix">卷三</em><i class="vol-sep">·</i><span class="vol-name">永乐宫</span></span>
+      <span class="scroll-nav-glyph">❖</span>
+    </button>
+  </nav>
+</body>
+</html>
