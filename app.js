@@ -3717,8 +3717,7 @@ const loadingBar = document.getElementById('loading-bar');
         function dismissIntroOverlay() {
             if (ciOverlay && !ciOverlay.classList.contains('is-dismissed')) {
                 ciOverlay.classList.add('is-dismissed');
-                if (typeof guqinAudio !== 'undefined') guqinAudio.playPaperFlip();
-                showIbCardWithAutoCollapse(3000);
+                setTimeout(() => showIbCardWithAutoCollapse(3000), 1400);
             }
         }
 
@@ -3730,6 +3729,8 @@ const loadingBar = document.getElementById('loading-bar');
                 dismissIntroOverlay();
             });
         }
+        // 电影式开篇：4 秒后自动渐隐进入画卷（不可跳过）
+        (function startCinematic() { let started = false; const go = () => { if (started) return; started = true; if (ciOverlay) ciOverlay.classList.add('ci-run'); setTimeout(dismissIntroOverlay, 7800); }; const lo = document.getElementById('loading-overlay'); if (!lo || lo.classList.contains('fade-out')) { go(); } else { new MutationObserver((m, ob) => { if (lo.classList.contains('fade-out')) { ob.disconnect(); go(); } }).observe(lo, { attributes: true, attributeFilter: ['class'] }); } })();
         if (ciOverlay) {
             ['click', 'pointerdown', 'mousedown', 'touchstart', 'touchend'].forEach((evtName) => {
                 ciOverlay.addEventListener(evtName, (e) => {
